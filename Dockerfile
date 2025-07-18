@@ -1,28 +1,39 @@
-# Usa una imagen oficial PHP con Apache
-FROM php:8.1-apache
+# Imagen base con PHP, Apache y extensiones necesarias
+FROM php:8.2-apache
 
-# Instala dependencias necesarias para Laravel y extensiones PHP
+# Instala extensiones necesarias de Laravel y Composer
 RUN apt-get update && apt-get install -y \
-    libzip-dev zip unzip git \
-    && docker-php-ext-install pdo_mysql zip
+    libzip-dev \
+    unzip \
+    git \
+    curl \
+    zip \
+    && docker-php-ext-install pdo pdo_mysql zip
 
-# Habilita mod_rewrite para Apache (necesario para Laravel)
+# Habilita mod_rewrite de Apache (para URLs amigables de Laravel)
 RUN a2enmod rewrite
 
-# Copia el código de tu proyecto al contenedor
-COPY . /var/www/html
-
-# Da permisos correctos
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
 # Instala Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer
 
-# Instala dependencias de PHP con Composer
-RUN composer install --optimize-autoloader --no-dev
+# Establece el directorio de trabajo
+WORKDIR /var/www/html
 
-# Expone el puerto 80 para acceso HTTP
+# Copia el contenido del proyecto
+COPY . .
+
+# Instala dependencias
+RUN composer install --no-dev --optimize-autoloader
+
+# Copia archivo de entorno si no existe
+RUN cp .env.example .env || true
+
+# Genera APP_KEY automáticamente (Laravel necesita esto)
+RUN php artisan key:generate
+
+# Da permisos a storage y bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache
+
+# Puerto a exponer
 EXPOSE 80
-
-# Inicia Apache en primer plano
-CMD ["apache2-foreground"]
