@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: laravel-app
-    runtime: php
+    name: gestion-laravel
+    env: php
+    plan: free
+    region: frankfurt
     buildCommand: |
       composer install --optimize-autoloader --no-dev
       php artisan config:cache
@@ -11,6 +13,8 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: APP_DEBUG
+        value: false
       - key: APP_KEY
         generateValue: true
       - key: DB_CONNECTION
