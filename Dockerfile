@@ -1,7 +1,7 @@
-# Usa la imagen oficial de PHP con Apache
+# Imagen base con PHP, Apache y Composer
 FROM php:8.2-apache
 
-# Instala dependencias del sistema
+# Instala extensiones necesarias para Laravel
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -10,30 +10,26 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    curl \
     && docker-php-ext-install pdo_mysql zip
 
-# Habilita mod_rewrite para Laravel
+# Habilita mod_rewrite en Apache
 RUN a2enmod rewrite
 
-# Instala Composer globalmente
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-
-# Define la carpeta del proyecto
+# Establece el directorio de trabajo
 WORKDIR /var/www/html
 
-# Copia solo lo necesario primero (para aprovechar caché en builds)
-COPY composer.json composer.lock ./
-
-# Instala dependencias de Laravel (sin dev, optimizado)
-RUN composer install --no-dev --optimize-autoloader
-
-# Luego copia el resto del proyecto
+# Copia los archivos del proyecto al contenedor
 COPY . .
 
-# Permisos recomendados
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 storage bootstrap/cache
+# Instala dependencias de PHP con Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && composer install --no-dev --optimize-autoloader
 
-# Configura Apache para servir Laravel desde /public
-COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
+# Establece permisos correctos (opcional pero recomendado)
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html/storage
+
+# Configura Apache para servir desde public/
+COPY ./docker/apache.conf /etc/apache2/sites-available/000-default.conf
+
+RUN composer install --optimize-autoloader --no-dev
